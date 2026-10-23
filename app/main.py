@@ -1,4 +1,8 @@
 from fastapi import FastAPI
+from app.database import engine, Base
+from app.database_model import *
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Iot Locker Backend",

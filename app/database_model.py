@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from app.database import Base
@@ -9,6 +9,7 @@ class Machine(Base):
     machine_id = Column(String, primary_key=True, index=True)
     address = Column(String, nullable=False)
     service_locker_id = Column(String, nullable=False)
+    is_service_open = Column(Boolean, default=False)
 
     #Relacje
     lockers = relationship("Locker", back_populates="machine")

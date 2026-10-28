@@ -31,15 +31,18 @@ def read_root():
 def get_machine_lockers(machine_id: str, db: Session = Depends(get_db)):
     print(f"Pobieranie skrytek dla maszyny {machine_id}")
 
-    machine = db.query(Machine).filter(Machine.id == machine_id).first()
+    machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()
 
-    lockers = db.query(Locker).filter(Locker.machine.id == machine_id).all()
+    if not machine:
+        raise HTTPException(status_code=404, detail=f"Maszyna {machine_id} nie istnieje w bazie")
+
+    lockers = db.query(Locker).filter(Locker.machine_id == machine_id).all()
 
     return {
-        "machine_id": machine.id,
+        "machine_id": machine_id,
         "service_locker_id": machine.service_locker_id,
         "is_service_open": machine.is_service_open,
-        "lockers": [{"locker_id": l.id, "status": l.status} for l in lockers]
+        "lockers": [{"locker_id": l.locker_id, "status": l.status} for l in lockers]
     }
 
 @app.post("/api/auth/technician-verify", tags=["Maszyna IoT"], response_model=TechnicianVerifyResponse)
@@ -50,7 +53,7 @@ def verify_technician(payload: TechnicianVerifyRequest, db: Session = Depends(ge
     if not technician:
         raise HTTPException(status_code=404, detail="Bledne dane technika")
 
-    machine = db.query(Machine).filter(Machine.id == payload.machine_id).first()
+    machine = db.query(Machine).filter(Machine.machine_id == payload.machine_id).first()
 
     machine.is_service_open = True
     db.commit()
@@ -58,16 +61,17 @@ def verify_technician(payload: TechnicianVerifyRequest, db: Session = Depends(ge
     return {
         "access_granted": True, 
         "message": "Tryb serwisowy odblokowany",
-        "machine_id": machine.id,
+        "machine_id": machine.machine_id,
         "service_locker": machine.service_locker_id,
         "action": "OPENED"
         }
 
+#Endpoint czysto prototypowy przez brak czujników na skrytkach :)
 @app.get("/api/machines/{machine_id}/service-close", tags=["Maszyna IoT"], response_model=SuccessResponse)
 def close_service_locker(machine_id: str, db: Session = Depends(get_db)):
     print(f"Zamykanie skrytki serwisowej na maszynie {machine_id}")
 
-    machine = db.query(Machine).filter(Machine.id == machine_id).first()
+    machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()
 
     machine.is_service_open = False
     db.commit()

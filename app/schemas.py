@@ -19,7 +19,7 @@ class CourierLoginRequest(BaseModel):
 class CourierDeliverRequest(BaseModel):
     package_number: int
 
-#Modele odpowiedzi (RESPONSE)
+# Modele odpowiedzi (RESPONSE)
 class SuccessResponse(BaseModel):
     success: bool
     message: str

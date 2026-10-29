@@ -6,7 +6,7 @@ Serwerowy moduł backendowy prototypu skrytek pocztowych. Aplikacja udostępnia 
 
 ## Stos technologiczny
 
-* **Język:** Python 3.10+
+* **Język:** Python 3.14.4
 * **Framework API:** FastAPI
 * **Serwer ASGI:** Uvicorn
 * **ORM:** SQLAlchemy

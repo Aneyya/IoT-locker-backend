@@ -82,10 +82,8 @@ python -m scripts.seed
 Skrypt utworzy maszynę KR001, 5 skrytek klienckich (POX001–POX005), skrytkę serwisową SRV001 oraz testowe paczki i kody PIN.
 
 ### 5. Uruchomienie serwera API
-
-Uruchomienie z flagą --host 0.0.0.0 umożliwia przyjmowanie połączeń sieciowych z innych urządzeń w sieci lokalnej (np. klienta CLI na Raspberry Pi):
 ```Bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Serwer wystartuje lokalnie pod adresem [http://127.0.0.1:8000] oraz będzie dostępny dla innych maszyn w sieci pod adresem http://<IP_SERWERA>:8000.
+Serwer wystartuje lokalnie pod adresem [http://127.0.0.1:8000] i będzie gotowy do obsługi ruchu przekazywanego przez Nginx.

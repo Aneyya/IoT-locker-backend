@@ -28,9 +28,7 @@ IoT-Locker-backend/
 │   └── schemas.py           
 ├── scripts/
 │   └── seed.py
-├── app.db
-├── requirements.txt 
-└── README.md
+└── app.db
 ```
 ### Opis plików i katalogów:
 

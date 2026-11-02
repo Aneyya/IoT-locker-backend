@@ -1,4 +1,4 @@
-import uuid, random, time
+import uuid, random
 from fastapi import FastAPI, Depends, Header, HTTPException, status
 from app.database import engine, Base, SessionLocal
 from app.database_model import *
@@ -157,7 +157,11 @@ def seander_create_package(machine_id: str, payload: SenderCreateRequest, db: Se
         )
 
     try:
-        package_number = int(f"{int(time.time())}{random.randint(10,99)}")
+        for _ in range(5):
+            package_number = random.randint(10000000, 999999999)
+            existing_package = db.query(Package).filter(Package.package_number == package_number).first()
+            if not existing_package:
+                break
 
         new_package = Package(
             package_number = package_number,

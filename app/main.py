@@ -29,7 +29,7 @@ def read_root():
     return{"message":"Witaj! Serwer FastAPI dziala poprawnie"}
 
 @app.get("/api/machines/{machine_id}/lockers", tags=["Maszyna IoT"], response_model=MachineStatusResponse)
-def get_machine_lockers(machine_id: str, db: Session = Depends(get_db)):
+def get_machine_lockers(machine_id: str, db: Session = Depends(get_db), api_key: str = Depends(verify_rasp_api_key)):
     print(f"Pobieranie skrytek dla maszyny {machine_id}")
 
     machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()
@@ -49,12 +49,20 @@ def get_machine_lockers(machine_id: str, db: Session = Depends(get_db)):
         "lockers": [{"locker_id": l.locker_id, "status": l.status} for l in lockers]
     }
 
-@app.post("/api/auth/technician-verify", tags=["Maszyna IoT"], response_model=TechnicianVerifyResponse)
-def verify_technician(payload: TechnicianVerifyRequest, db: Session = Depends(get_db)):
+@app.post("/api/auth/technician-verify", tags=["Admin"], response_model=TechnicianVerifyResponse)
+def verify_technician(payload: TechnicianVerifyRequest, db: Session = Depends(get_db), api_key: str = Depends(verify_admin_api_key)):
     print(f"Weryfikacja technika: {payload.full_name} na maszynie {payload.machine_id}")
 
     technician = db.query(Technician).filter(Technician.full_name == payload.full_name).first()
     if not technician:
+        fail_log = ServiceLog(
+            machine_id=payload.machine_id,
+            tech_id=payload.tech_id,
+            action="REMOTE_VERIFY_FAILED"
+        )
+        db.add(fail_log)
+        db.commit()
+
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
             detail="Bledne dane technika"
@@ -67,20 +75,21 @@ def verify_technician(payload: TechnicianVerifyRequest, db: Session = Depends(ge
             detail=f"Maszyna {payload.machine_id} nie istnieje w bazie"
         )
 
+    succes_log = ServiceLog(
+        machine_id=payload.machine_id,
+        tech_id=technician.tech_id,
+        action="REMOTE_VERIFY_SUCCESS"
+    )
+    db.add(succes_log)
     machine.is_service_open = True
+
     db.commit()
 
-    return {
-        "access_granted": True, 
-        "message": "Tryb serwisowy odblokowany",
-        "machine_id": machine.machine_id,
-        "service_locker": machine.service_locker_id,
-        "action": "OPENED"
-        }
+    return {"access_granted": True, "message": "Tryb serwisowy odblokowany"}
 
 #Endpoint czysto prototypowy przez brak czujników na skrytkach :)
-@app.get("/api/machines/{machine_id}/service-close", tags=["Maszyna IoT"], response_model=SuccessResponse)
-def close_service_locker(machine_id: str, db: Session = Depends(get_db)):
+@app.get("/api/machines/{machine_id}/service-close", tags=["Admin"], response_model=SuccessResponse)
+def close_service_locker(machine_id: str, db: Session = Depends(get_db), api_key: str = Depends(verify_admin_api_key)):
     print(f"Zamykanie skrytki serwisowej na maszynie {machine_id}")
 
     machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()
@@ -89,15 +98,22 @@ def close_service_locker(machine_id: str, db: Session = Depends(get_db)):
             status_code=status.HTTP_404_NOT_FOUND, 
             detail=f"Maszyna {machine_id} nie istnieje w bazie"
         )
-    
+
+    success_close_log = ServiceLog(
+        machine_id=machine_id,
+        tech_id=None,
+        action = "SERVICE_CLOSE_SUCCESS"
+    )
+    db.add(success_close_log)
     machine.is_service_open = False
+
     db.commit()
     
     return {"success": True, "message": "Zamykam skrytke"}
 
 # Klienci
 @app.post("/api/machines/{machine_id}/recipient/pickup", tags=["Klienci"], response_model=SuccessResponse)
-def recipient_pickup(machine_id: str, payload: RecipientPickupRequest, db: Session = Depends(get_db)):
+def recipient_pickup(machine_id: str, payload: RecipientPickupRequest, db: Session = Depends(get_db), api_key: str = Depends(verify_rasp_api_key)):
     print(f"Odbior paczki na maszynie {machine_id} telefon: {payload.recipient_phone}")
 
     machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()
@@ -160,7 +176,7 @@ def recipient_pickup(machine_id: str, payload: RecipientPickupRequest, db: Sessi
         }
             
 @app.post("/api/machines/{machine_id}/sender/create-package", tags=["Klienci"], response_model=SuccessResponse)
-def seander_create_package(machine_id: str, payload: SenderCreateRequest, db: Session = Depends(get_db)):
+def seander_create_package(machine_id: str, payload: SenderCreateRequest, db: Session = Depends(get_db), api_key: str = Depends(verify_rasp_api_key)):
     print(f"Nadanie paczki na maszynie {machine_id} do odbiorcy: {payload.recipient_phone}")
 
     machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()
@@ -220,7 +236,7 @@ def seander_create_package(machine_id: str, payload: SenderCreateRequest, db: Se
 
 # Kurier
 @app.post("/api/auth/courier-login", tags=["Kurier"], response_model=CourierLoginResponse)
-def courier_login(payload: CourierLoginRequest, db: Session = Depends(get_db)):
+def courier_login(payload: CourierLoginRequest, db: Session = Depends(get_db), api_key: str = Depends(verify_rasp_api_key)):
     print(f"Proba logowania kuriera {payload.courier_login}")
 
     courier = db.query(Courier).filter(Courier.courier_login == payload.courier_login).first()
@@ -242,7 +258,7 @@ def courier_login(payload: CourierLoginRequest, db: Session = Depends(get_db)):
         }
 
 @app.post("/api/auth/courier-logout", tags=["Kurier"], response_model=SuccessResponse)
-def courier_logout(x_auth_tocken: str = Header(None, alias="x-auth-tocken"), db: Session = Depends(get_db)):
+def courier_logout(x_auth_tocken: str = Header(None, alias="x-auth-tocken"), db: Session = Depends(get_db), api_key: str = Depends(verify_rasp_api_key)):
     if not x_auth_tocken:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -264,11 +280,11 @@ def courier_logout(x_auth_tocken: str = Header(None, alias="x-auth-tocken"), db:
     return {"success": True, "message":"Wylogowano"}
 
 @app.get("/api/courier/pickups", tags=["Kurier"], response_model=CourierPickupsResponse)
-def get_courier_pickups(x_auth_tocken: str = Header(None)):
+def get_courier_pickups(x_auth_tocken: str = Header(None), api_key: str = Depends(verify_rasp_api_key)):
     print(f"Kurier pobiera liste paczek do wyjecia Token: {x_auth_tocken}")
     return {"success": True, "lockers_to_open":["POX001", "POX002"], "message":"Otwieram skrytki"}
 
 @app.post("/api/courier/deliver", tags=["Kurier"], response_model=SuccessResponse)
-def courier_deliver(payload: CourierDeliverRequest, x_auth_tocken: str = Header(None)):
+def courier_deliver(payload: CourierDeliverRequest, x_auth_tocken: str = Header(None), api_key: str = Depends(verify_rasp_api_key)):
     print(f"Kurier dorecza paczke nr: {payload.package_number}. Tocken: {x_auth_tocken}")
     return {"success": True, "message": "Paczka zarejestrowana, otwieram skrytke"}

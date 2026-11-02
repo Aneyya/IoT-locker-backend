@@ -65,8 +65,9 @@ class ServiceLog(Base):
 
     log_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     machine_id = Column(String, ForeignKey("machines.machine_id"), nullable=False)
-    tech_id = Column(Integer, ForeignKey("technicians.tech_id"), nullable=False)
-    opened_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    tech_id = Column(Integer, ForeignKey("technicians.tech_id"), nullable=True)
+    action = Column(String, nullable=False)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     
     #Relacje
     machine = relationship("Machine", back_populates="service_logs")

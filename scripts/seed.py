@@ -1,6 +1,7 @@
 from datetime import datetime
 from app.database import *
 from app.database_model import *
+from app.security import *
 
 def seed_database():
     print("Resetowanie tabel w bazie danych")
@@ -27,9 +28,10 @@ def seed_database():
         )
         db.add(tech)
 
+        secure_pass = hash_password("test")
         courier = Courier(
             courier_login="test",
-            password_hash="test",
+            password_hash=secure_pass,
             tocken_session=None
         )
         db.add(courier)

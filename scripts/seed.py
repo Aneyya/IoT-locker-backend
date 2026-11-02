@@ -54,7 +54,7 @@ def seed_database():
             Locker(locker_id="POX001", machine_id="KR001", status="AVAILABLE", package_number=None, pin_code=None),
             Locker(locker_id="POX002", machine_id="KR001", status="OCCUPIED", package_number=111111, pin_code="1234"),
             Locker(locker_id="POX003", machine_id="KR001", status="AVAILABLE", package_number=None, pin_code=None),
-            Locker(locker_id="POX004", machine_id="KR001", status="OCCUPIED", package_number=222222, pin_code="5678"),
+            Locker(locker_id="POX004", machine_id="KR001", status="OCCUPIED", package_number=222222, pin_code=None),
             Locker(locker_id="POX005", machine_id="KR001", status="AVAILABLE", package_number=None, pin_code=None),
         ]
         db.add_all(lockers)

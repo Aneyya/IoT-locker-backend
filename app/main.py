@@ -1,5 +1,5 @@
-import uuid
-from fastapi import FastAPI, Depends, Header, HTTPException
+import uuid, random, time
+from fastapi import FastAPI, Depends, Header, HTTPException, status
 from app.database import engine, Base, SessionLocal
 from app.database_model import *
 from sqlalchemy.orm import Session
@@ -21,7 +21,7 @@ def get_db():
         db.close()
 
 #
-# Szkielet endpointów (TESTOWE)
+# ENDPOINTY
 #
 @app.get("/", tags=["System"], response_model=RootResponse)
 def read_root():
@@ -34,7 +34,7 @@ def get_machine_lockers(machine_id: str, db: Session = Depends(get_db)):
     machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()
 
     if not machine:
-        raise HTTPException(status_code=404, detail=f"Maszyna {machine_id} nie istnieje w bazie")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Maszyna {machine_id} nie istnieje w bazie")
 
     lockers = db.query(Locker).filter(Locker.machine_id == machine_id).all()
 
@@ -51,9 +51,11 @@ def verify_technician(payload: TechnicianVerifyRequest, db: Session = Depends(ge
 
     technician = db.query(Technician).filter(Technician.full_name == payload.full_name).first()
     if not technician:
-        raise HTTPException(status_code=404, detail="Bledne dane technika")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bledne dane technika")
 
     machine = db.query(Machine).filter(Machine.machine_id == payload.machine_id).first()
+    if not machine:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Maszyna {payload.machine_id} nie istnieje w bazie")
 
     machine.is_service_open = True
     db.commit()
@@ -72,22 +74,115 @@ def close_service_locker(machine_id: str, db: Session = Depends(get_db)):
     print(f"Zamykanie skrytki serwisowej na maszynie {machine_id}")
 
     machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()
-
+    if not machine:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Maszyna {machine_id} nie istnieje w bazie")
+    
     machine.is_service_open = False
     db.commit()
     
     return {"success": True, "message": "Zamykam skrytke"}
 
 # Klienci
-@app.post("/api/recipient/pickup", tags=["Klienci"], response_model=SuccessResponse)
-def recipient_pickup(payload: RecipientPickupRequest):
-    print(f"Odbior paczki telefon {payload.recipient_phone}")
-    return {"success": True, "message": "Otwieram skrytke"}
+@app.post("/api/machines/{machine_id}/recipient/pickup", tags=["Klienci"], response_model=SuccessResponse)
+def recipient_pickup(machine_id: str, payload: RecipientPickupRequest, db: Session = Depends(get_db)):
+    print(f"Odbior paczki na maszynie {machine_id} telefon: {payload.recipient_phone}")
+
+    machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()
+    if not machine:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ERROR: Maszyna o podanym ID nie istnieje")
+
+    occupied_lockers = db.query(Locker).filter(
+        Locker.machine_id == machine_id,
+        Locker.status == "OCCUPIED",
+        Locker.package_number != None,
+        Locker.pin_code != None,
+    ).all()
+
+    matched_locker = None
+    matched_package = None
+
+    for locker in occupied_lockers:
+        package = db.query(Package).filter(
+            Package.package_number == locker.package_number,
+            Package.recipient_phone == payload.recipient_phone,
+            Package.status == "AWAITING_RECIPIENT"
+        ).first()
+
+        if package and locker.pin_code == payload.pin_code:
+            matched_locker = locker
+            matched_package = package
+            break
+
+    if not matched_locker or not matched_package:
+        raise HTTPException(status_code= status.HTTP_400_BAD_REQUEST, detail="ERROR: Bledny numer telefon, zly Pin lub brak oczekujacej paczki")
+
+    try:
+        matched_locker.status = "AVAILABLE"
+        matched_locker.package_number = None
+        matched_locker.pin_code = None
+
+        matched_package.status = "RECEIVED"
+
+        db.commit()
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="ERROR: Blad bazy danych podczas aktualizacji statusow")
+
+    print(f"Sukces! Otwieram skrytke {matched_locker.locker_id}")
+
+    return {
+        "success": True, 
+        "message": "Otwieram skrytke",
+        "locker_id": matched_locker.locker_id
+        }
             
-@app.post("/api/sender/create-package", tags=["Klienci"], response_model=SuccessResponse)
-def seander_create_package(payload: SenderCreateRequest):
-    print(f"Nadanie paczki do {payload.recipient_phone}")
-    return {"success": True, "message": "Paczka zarejestrowana, otwieram skrytke"}
+@app.post("/api/machines/{machine_id}/sender/create-package", tags=["Klienci"], response_model=SuccessResponse)
+def seander_create_package(machine_id: str, payload: SenderCreateRequest, db: Session = Depends(get_db)):
+    print(f"Nadanie paczki na maszynie {machine_id} do odbiorcy: {payload.recipient_phone}")
+
+    machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()
+    if not machine:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ERROR: Maszyna o podanym ID nie istnieje")
+
+    free_locker = db.query(Locker).filter(
+        Locker.machine_id == machine_id,
+        Locker.status == "AVAILABLE"
+    ).first()
+
+    if not free_locker:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="ERROR: Brak wolnych skrytek w tej maszynie"
+        )
+
+    try:
+        package_number = int(f"{int(time.time())}{random.randint(10,99)}")
+
+        new_package = Package(
+            package_number = package_number,
+            recipient_phone = payload.recipient_phone,
+            status = "AWAITING_COURIER"
+        )
+        db.add(new_package)
+
+        free_locker.status = "OCCUPIED"
+        free_locker.package_number = package_number
+
+        db.commit()
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="ERROR: Blad bazy danych podczas aktualizacji statusow")
+
+    print(f"Sukces! Paczka {package_number} przypisana do skrytki {free_locker.locker_id}. Otwieram skrytke")
+
+    return {
+        "success": True, 
+        "message": "Paczka zarejestrowana, otwieram skrytke",
+        "package_number": package_number,
+        "locker_id": free_locker.locker_id
+        }
 
 # Kurier
 @app.post("/api/auth/courier-login", tags=["Kurier"], response_model=CourierLoginResponse)

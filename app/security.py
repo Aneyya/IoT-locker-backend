@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")
-IOT_RASP_API_KEY = os.getenv("IOT_RASP_API_KEY")
+RASP_API_KEY = os.getenv("RASP_API_KEY")
 
 def verify_admin_api_key(x_api_key: str = Header(None, alias="x-api-key")) -> str:
     if not x_api_key or x_api_key != ADMIN_API_KEY:
@@ -17,14 +17,14 @@ def verify_admin_api_key(x_api_key: str = Header(None, alias="x-api-key")) -> st
     return x_api_key
 
 def verify_rasp_api_key(x_api_key: str = Header(None, alias="x-api-key")) -> str:
-    if not x_api_key or x_api_key != IOT_RASP_API_KEY:
+    if not x_api_key or x_api_key != RASP_API_KEY:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="ERROR: Brak autoryzacji urzadzenia IoT (nieprawidlowy API KEY)"
         )
     return x_api_key
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)

@@ -24,9 +24,6 @@ class SuccessResponse(BaseModel):
     success: bool
     message: str
 
-class RootResponse(BaseModel):
-    message: str
-
 class LockerStatusResponse(BaseModel):
     locker_id: str
     status: str
@@ -42,7 +39,6 @@ class TechnicianVerifyResponse(BaseModel):
     message: str
     machine_id: str
     service_locker: str
-    action: str
 
 class CourierLoginResponse(BaseModel):
     authenticated: bool
@@ -50,5 +46,21 @@ class CourierLoginResponse(BaseModel):
 
 class CourierPickupsResponse(BaseModel):
     success: bool
-    lockers_to_open: list[str]
     message: str
+    lockers_to_open: list[str]
+
+class CourierDeliveryResponse(BaseModel):
+    success: bool
+    message: str
+    locker_id: str
+
+class ClientPickupResponse(BaseModel):
+    success: bool
+    message: str
+    locker_id: str
+
+class ClientSenderResponse(BaseModel):
+    success: bool
+    message: str
+    package_number: int
+    locker_id: str

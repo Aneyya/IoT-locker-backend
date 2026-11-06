@@ -38,7 +38,7 @@ def verify_technician(payload: TechnicianVerifyRequest, db: Session = Depends(ge
     if not technician:
         fail_log = ServiceLog(
             machine_id=payload.machine_id,
-            tech_id=payload.tech_id,
+            tech_id=None,
             action="REMOTE_VERIFY_FAILED"
         )
         db.add(fail_log)
@@ -74,7 +74,7 @@ def verify_technician(payload: TechnicianVerifyRequest, db: Session = Depends(ge
     }
 
 #Endpoint czysto prototypowy przez brak czujników na skrytkach :)
-@router.get("/api/machines/{machine_id}/service-close", tags=["Admin"], response_model=SuccessResponse)
+@router.post("/api/machines/{machine_id}/service-close", tags=["Admin"], response_model=SuccessResponse)
 def close_service_locker(machine_id: str, db: Session = Depends(get_db), api_key: str = Depends(verify_admin_api_key)):
     print(f"Zamykanie skrytki serwisowej na maszynie {machine_id}")
 

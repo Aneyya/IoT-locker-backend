@@ -1,23 +1,23 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # Model żądań (REQUEST)
 class TechnicianVerifyRequest(BaseModel):
-    machine_id: str
-    full_name: str
+    machine_id: str = Field(..., min_length=1, max_length=50)
+    full_name: str = Field(..., min_length=2, max_length=100)
 
 class RecipientPickupRequest(BaseModel):
-    recipient_phone: str
-    pin_code: str
+    recipient_phone: str = Field(..., pattern=r"^\+?[1-9]\d{7,14}$")
+    pin_code: str =  Field(..., pattern=r"^\d{6}$")
 
 class SenderCreateRequest(BaseModel):
-    recipient_phone: str
+    recipient_phone: str = Field(..., pattern=r"^\+?[1-9]\d{7,14}$")
 
 class CourierLoginRequest(BaseModel):
-    courier_login: str
-    password: str
+    courier_login: str = Field(..., min_length=3, max_length=50)
+    password: str = Field(..., min_length=5, max_length=128)
 
 class CourierDeliverRequest(BaseModel):
-    package_number: int
+    package_number: int = Field(..., ge=100000000, le=999999999)
 
 # Modele odpowiedzi (RESPONSE)
 class SuccessResponse(BaseModel):

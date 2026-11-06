@@ -9,7 +9,11 @@ router = APIRouter()
 
 # System
 @router.get("/api/machines/{machine_id}/lockers", tags=["Maszyna IoT"], response_model=MachineStatusResponse)
-def get_machine_lockers(machine_id: str, db: Session = Depends(get_db), api_key: str = Depends(verify_rasp_api_key)):
+def get_machine_lockers(
+    machine_id: str, 
+    db: Session = Depends(get_db), 
+    api_key: str = Depends(verify_rasp_api_key)):
+
     print(f"Pobieranie skrytek dla maszyny {machine_id}")
 
     machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()
@@ -31,7 +35,11 @@ def get_machine_lockers(machine_id: str, db: Session = Depends(get_db), api_key:
 
 # Admin
 @router.post("/api/auth/technician-verify", tags=["Admin"], response_model=TechnicianVerifyResponse)
-def verify_technician(payload: TechnicianVerifyRequest, db: Session = Depends(get_db), api_key: str = Depends(verify_admin_api_key)):
+def verify_technician(
+    payload: TechnicianVerifyRequest, 
+    db: Session = Depends(get_db), 
+    api_key: str = Depends(verify_admin_api_key)):
+
     print(f"Weryfikacja technika: {payload.full_name} na maszynie {payload.machine_id}")
 
     technician = db.query(Technician).filter(Technician.full_name == payload.full_name).first()
@@ -75,7 +83,11 @@ def verify_technician(payload: TechnicianVerifyRequest, db: Session = Depends(ge
 
 #Endpoint czysto prototypowy przez brak czujników na skrytkach :)
 @router.post("/api/machines/{machine_id}/service-close", tags=["Admin"], response_model=SuccessResponse)
-def close_service_locker(machine_id: str, db: Session = Depends(get_db), api_key: str = Depends(verify_admin_api_key)):
+def close_service_locker(
+    machine_id: str, 
+    db: Session = Depends(get_db), 
+    api_key: str = Depends(verify_admin_api_key)):
+    
     print(f"Zamykanie skrytki serwisowej na maszynie {machine_id}")
 
     machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()

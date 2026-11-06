@@ -1,4 +1,4 @@
-import random
+import secrets
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -10,7 +10,12 @@ router = APIRouter()
 
 # Klient
 @router.post("/api/machines/{machine_id}/recipient/pickup", tags=["Klienci"], response_model=ClientPickupResponse)
-def recipient_pickup(machine_id: str, payload: RecipientPickupRequest, db: Session = Depends(get_db), api_key: str = Depends(verify_rasp_api_key)):
+def recipient_pickup(
+    machine_id: str, 
+    payload: RecipientPickupRequest, 
+    db: Session = Depends(get_db), 
+    api_key: str = Depends(verify_rasp_api_key)):
+
     print(f"Odbior paczki na maszynie {machine_id} telefon: {payload.recipient_phone}")
 
     machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()
@@ -74,7 +79,12 @@ def recipient_pickup(machine_id: str, payload: RecipientPickupRequest, db: Sessi
     }
             
 @router.post("/api/machines/{machine_id}/sender/create-package", tags=["Klienci"], response_model=ClientSenderResponse)
-def seander_create_package(machine_id: str, payload: SenderCreateRequest, db: Session = Depends(get_db), api_key: str = Depends(verify_rasp_api_key)):
+def seander_create_package(
+    machine_id: str, 
+    payload: SenderCreateRequest, 
+    db: Session = Depends(get_db), 
+    api_key: str = Depends(verify_rasp_api_key)):
+    
     print(f"Nadanie paczki na maszynie {machine_id} do odbiorcy: {payload.recipient_phone}")
 
     machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()
@@ -87,7 +97,7 @@ def seander_create_package(machine_id: str, payload: SenderCreateRequest, db: Se
     free_locker = db.query(Locker).filter(
         Locker.machine_id == machine_id,
         Locker.status == "AVAILABLE"
-    ).first()
+    ).with_for_update().first()
 
     if not free_locker:
         raise HTTPException(
@@ -97,12 +107,10 @@ def seander_create_package(machine_id: str, payload: SenderCreateRequest, db: Se
 
     try:
         for _ in range(5):
-            package_number = random.randint(10000000, 999999999)
+            package_number = str(secrets.randbelow(900000000) + 100000000)
             existing_package = db.query(Package).filter(Package.package_number == package_number).first()
             if not existing_package:
                 break
-        else:
-            package_number = random.randint(10000000, 999999999)
 
         new_package = Package(
             package_number = package_number,

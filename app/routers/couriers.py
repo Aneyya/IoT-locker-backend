@@ -10,9 +10,45 @@ from app.security import *
 router = APIRouter()
 sec_auth_token = HTTPBearer()
 
+def get_current_courier(
+    credentials: HTTPAuthorizationCredentials = Depends(sec_auth_token), 
+    db: Session = Depends(get_db)):
+
+    x_auth_token = credentials.credentials
+    if not x_auth_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="RROR: Brak naglowka autoryzacyjnego"
+        )
+            
+    hashed_auth_token = hash_secret(x_auth_token)
+    courier = db.query(Courier).filter(Courier.token_session == hashed_auth_token).first()
+    
+    if not courier:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Brak aktywnej sesji kuriera. Zaloguj sie ponownie"
+        )
+
+    if not courier.token_expires_at or courier.token_expires_at < datetime.now(timezone.utc):
+        courier.token_session = None
+        courier.token_expires_at = None
+        db.commit()
+
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Brak aktywnej sesji kuriera. Zaloguj sie ponownie"
+        )
+
+    return courier
+
 # Kurier
 @router.post("/api/auth/courier-login", tags=["Kurier"], response_model=CourierLoginResponse)
-def courier_login(payload: CourierLoginRequest, db: Session = Depends(get_db), api_key: str = Depends(verify_rasp_api_key)):
+def courier_login(
+    payload: CourierLoginRequest, 
+    db: Session = Depends(get_db), 
+    api_key: str = Depends(verify_rasp_api_key)):
+
     print(f"Proba logowania kuriera {payload.courier_login}")
 
     courier = db.query(Courier).filter(Courier.courier_login == payload.courier_login).first()
@@ -36,22 +72,10 @@ def courier_login(payload: CourierLoginRequest, db: Session = Depends(get_db), a
         }
 
 @router.post("/api/auth/courier-logout", tags=["Kurier"], response_model=SuccessResponse)
-def courier_logout( db: Session = Depends(get_db), credentials: HTTPAuthorizationCredentials = Depends(sec_auth_token), api_key: str = Depends(verify_rasp_api_key)):
-    x_auth_token = credentials.credentials
-    if not x_auth_token:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="RROR: Brak naglowka autoryzacyjnego"
-        )
-    
-    hashed_auth_token = hash_secret(x_auth_token)
-    courier = db.query(Courier).filter(Courier.token_session == hashed_auth_token).first()
-
-    if not courier:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="ERROR: Nieprawidlowy lub wygasly token sesji"
-        )
+def courier_logout(
+    db: Session = Depends(get_db), 
+    courier: Courier = Depends(get_current_courier), 
+    api_key: str = Depends(verify_rasp_api_key)):
 
     courier.token_session = None
     courier.token_expires_at = None
@@ -61,32 +85,11 @@ def courier_logout( db: Session = Depends(get_db), credentials: HTTPAuthorizatio
     return {"success": True, "message":"Wylogowano"}
 
 @router.get("/api/machines/{machine_id}/courier/pickups", tags=["Kurier"], response_model=CourierPickupsResponse)
-def get_courier_pickups(machine_id: str, db: Session = Depends(get_db), credentials: HTTPAuthorizationCredentials = Depends(sec_auth_token), api_key: str = Depends(verify_rasp_api_key)):
-    x_auth_token = credentials.credentials
-    if not x_auth_token:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="RROR: Brak naglowka autoryzacyjnego"
-        )
-        
-    hashed_auth_token = hash_secret(x_auth_token)
-    courier = db.query(Courier).filter(Courier.token_session == hashed_auth_token).first()
-
-    if not courier:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Brak aktywnej sesji kuriera. Zaloguj sie ponownie"
-        )
-
-    if not courier.token_expires_at or courier.token_expires_at < datetime.now(timezone.utc):
-        courier.token_session = None
-        courier.token_expires_at = None
-        db.commit()
-
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Brak aktywnej sesji kuriera. Zaloguj sie ponownie"
-        )
+def get_courier_pickups(
+    machine_id: str, 
+    db: Session = Depends(get_db), 
+    courier: Courier = Depends(get_current_courier), 
+    api_key: str = Depends(verify_rasp_api_key)):
 
     packages_to_pickup = db.query(Package).join(
         Locker, Locker.package_number == Package.package_number
@@ -112,32 +115,11 @@ def get_courier_pickups(machine_id: str, db: Session = Depends(get_db), credenti
     }
 
 @router.post("/api/machines/{machine_id}/courier/confirm-pickups", tags=["Kurier"], response_model=CourierPickupsResponse)
-def confirm_courier_pickups(machine_id: str, db: Session = Depends(get_db), credentials: HTTPAuthorizationCredentials = Depends(sec_auth_token), api_key: str = Depends(verify_rasp_api_key)):
-    x_auth_token = credentials.credentials
-    if not x_auth_token:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="RROR: Brak naglowka autoryzacyjnego"
-        )
-            
-    hashed_auth_token = hash_secret(x_auth_token)
-    courier = db.query(Courier).filter(Courier.token_session == hashed_auth_token).first()
-    
-    if not courier:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Brak aktywnej sesji kuriera. Zaloguj sie ponownie"
-        )
-    
-    if not courier.token_expires_at or courier.token_expires_at < datetime.now(timezone.utc):
-        courier.token_session = None
-        courier.token_expires_at = None
-        db.commit()
-    
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Brak aktywnej sesji kuriera. Zaloguj sie ponownie"
-        )
+def confirm_courier_pickups(
+    machine_id: str, 
+    db: Session = Depends(get_db), 
+    courier: Courier = Depends(get_current_courier), 
+    api_key: str = Depends(verify_rasp_api_key)):
 
     packages_to_pickup = db.query(Package).join(
         Locker, Locker.package_number == Package.package_number
@@ -178,32 +160,12 @@ def confirm_courier_pickups(machine_id: str, db: Session = Depends(get_db), cred
     }
 
 @router.post("/api/machines/{machine_id}/courier/deliver", tags=["Kurier"], response_model=CourierDeliveryResponse)
-def courier_deliver(machine_id: str, payload: CourierDeliverRequest, db: Session = Depends(get_db), credentials: HTTPAuthorizationCredentials = Depends(sec_auth_token), api_key: str = Depends(verify_rasp_api_key)):
-    x_auth_token = credentials.credentials
-    if not x_auth_token:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="RROR: Brak naglowka autoryzacyjnego"
-        )
-        
-    hashed_auth_token = hash_secret(x_auth_token)
-    courier = db.query(Courier).filter(Courier.token_session == hashed_auth_token).first()
-
-    if not courier:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Brak aktywnej sesji kuriera. Zaloguj sie ponownie"
-        )
-    
-    if not courier.token_expires_at or courier.token_expires_at < datetime.now(timezone.utc):
-        courier.token_session = None
-        courier.token_expires_at = None
-        db.commit()
-        
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Brak aktywnej sesji kuriera. Zaloguj sie ponownie"
-        )
+def courier_deliver(
+    machine_id: str, 
+    payload: CourierDeliverRequest, 
+    db: Session = Depends(get_db), 
+    courier: Courier = Depends(get_current_courier),
+    api_key: str = Depends(verify_rasp_api_key)):
 
     package = db.query(Package).filter(
         Package.package_number == payload.package_number,
@@ -215,11 +177,17 @@ def courier_deliver(machine_id: str, payload: CourierDeliverRequest, db: Session
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Paczka nie istnieje lub jest przypisana do innego kuriera"
         )
+    
+    if package.status != "ON_THE_WAY":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ta paczka nie ma statusu 'W drodze'. Nie mozna jej dostarczyc"
+        )
 
     free_locker = db.query(Locker).filter(
         Locker.machine_id == machine_id,
         Locker.status == "AVAILABLE"
-    ).first()
+    ).with_for_update().first()
 
     if not free_locker:
         raise HTTPException(

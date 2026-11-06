@@ -42,7 +42,7 @@ class TechnicianVerifyResponse(BaseModel):
 
 class CourierLoginResponse(BaseModel):
     authenticated: bool
-    tocken_session: str
+    token_session: str
 
 class CourierPickupsResponse(BaseModel):
     success: bool

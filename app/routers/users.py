@@ -1,4 +1,5 @@
 import random
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -144,42 +145,54 @@ def courier_login(payload: CourierLoginRequest, db: Session = Depends(get_db), a
             detail="ERROR: Bledny login lub haslo"
         )
 
-    session_tocken = generate_session_tocken()
-    courier.tocken_session = session_tocken
+    session_token = generate_session_token()
+    expires_at = datetime.now() + timedelta(minutes=30)
+    courier.token_session = session_token
+    courier.token_expires_at = expires_at
     db.commit()
 
     return {
         "authenticated": True, 
-        "tocken_session": session_tocken,
+        "token_session": session_token,
         "message": "Zalogowano pomyslnie"
         }
 
 @router.post("/api/auth/courier-logout", tags=["Kurier"], response_model=SuccessResponse)
-def courier_logout(x_auth_tocken: str = Header(None, alias="x-auth-tocken"), db: Session = Depends(get_db), api_key: str = Depends(verify_rasp_api_key)):
-    if not x_auth_tocken:
+def courier_logout(x_auth_token: str = Header(None, alias="x-auth-token"), db: Session = Depends(get_db), api_key: str = Depends(verify_rasp_api_key)):
+    if not x_auth_token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="RROR: Brak naglowka autoryzacyjnego"
         )
 
-    courier = db.query(Courier).filter(Courier.tocken_session == x_auth_tocken).first()
+    courier = db.query(Courier).filter(Courier.token_session == x_auth_token).first()
 
     if not courier:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="ERROR: Nieprawidlowy lub wygasly tocken sesji"
+            detail="ERROR: Nieprawidlowy lub wygasly token sesji"
         )
 
-    courier.tocken_session = None
+    courier.token_session = None
+    courier.token_expires_at = None
     db.commit()
     
     print(f"Wylogowanie kuriera: {courier.courier_login}")
     return {"success": True, "message":"Wylogowano"}
 
 @router.get("/api/machines/{machine_id}/courier/pickups", tags=["Kurier"], response_model=CourierPickupsResponse)
-def get_courier_pickups(machine_id: str, db: Session = Depends(get_db), x_auth_tocken: str = Header(None, alias="x-auth-tocken"), api_key: str = Depends(verify_rasp_api_key)):
-    courier = db.query(Courier).filter(Courier.tocken_session == x_auth_tocken).first()
+def get_courier_pickups(machine_id: str, db: Session = Depends(get_db), x_auth_token: str = Header(None, alias="x-auth-token"), api_key: str = Depends(verify_rasp_api_key)):
+    courier = db.query(Courier).filter(Courier.token_session == x_auth_token).first()
     if not courier:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Brak aktywnej sesji kuriera. Zaloguj sie ponownie"
+        )
+
+    if not courier.token_expires_at or courier.token_expires_at < datetime.now():
+        courier.token_session = None
+        courier.token_expires_at = None
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Brak aktywnej sesji kuriera. Zaloguj sie ponownie"
@@ -222,9 +235,18 @@ def get_courier_pickups(machine_id: str, db: Session = Depends(get_db), x_auth_t
     }
 
 @router.post("/api/machines/{machine_id}/courier/deliver", tags=["Kurier"], response_model=CourierDeliveryResponse)
-def courier_deliver(machine_id: str, payload: CourierDeliverRequest, db: Session = Depends(get_db), x_auth_tocken: str = Header(None), api_key: str = Depends(verify_rasp_api_key)):
-    courier = db.query(Courier).filter(Courier.tocken_session == x_auth_tocken).first()
+def courier_deliver(machine_id: str, payload: CourierDeliverRequest, db: Session = Depends(get_db), x_auth_token: str = Header(None), api_key: str = Depends(verify_rasp_api_key)):
+    courier = db.query(Courier).filter(Courier.token_session == x_auth_token).first()
     if not courier:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Brak aktywnej sesji kuriera. Zaloguj sie ponownie"
+        )
+    
+    if not courier.token_expires_at or courier.token_expires_at < datetime.now():
+        courier.token_session = None
+        courier.token_expires_at = None
+        
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Brak aktywnej sesji kuriera. Zaloguj sie ponownie"
@@ -252,7 +274,7 @@ def courier_deliver(machine_id: str, payload: CourierDeliverRequest, db: Session
             detail="Brak wolnych skrytek w tej maszynie"
         )
 
-    pin_code = str(random.randint(100000, 999999))
+    pin_code = generate_pin_code()
 
     print(f"\n [PROJEKT - POWIADOMIENIE SMS]")
     print(f"Do: {package.recipient_phone} | Paczka nr: {package.package_number}")

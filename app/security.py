@@ -1,4 +1,4 @@
-import uuid, os
+import secrets, os
 from passlib.context import CryptContext
 from fastapi import Header, HTTPException, status
 from dotenv import load_dotenv
@@ -24,6 +24,7 @@ def verify_rasp_api_key(x_api_key: str = Header(None, alias="x-api-key")) -> str
         )
     return x_api_key
 
+
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 def hash_password(password: str) -> str:
@@ -32,6 +33,10 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
-def generate_session_tocken() -> str:
-    return str(uuid.uuid4())
+
+def generate_pin_code() -> str:
+    return "".join(str(secrets.randbelow(10)) for _ in range(6))
+
+def generate_session_token() -> str:
+    return secrets.token_hex(32)
 

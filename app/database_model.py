@@ -45,7 +45,8 @@ class Courier(Base):
 
     courier_login = Column(String, primary_key=True, index=True)
     password_hash = Column(String, nullable=False)
-    tocken_session = Column(String, nullable=True)
+    token_session = Column(String, nullable=True)
+    token_expires_at = Column(DateTime, nullable=True)
 
     #Relacje
     packages = relationship("Package", back_populates="courier")

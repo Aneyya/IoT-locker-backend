@@ -28,7 +28,7 @@ def seed_database():
         )
         db.add(tech)
 
-        secure_pass = hash_password("test")
+        secure_pass = hash_password("test!test")
         courier = Courier(
             courier_login="test",
             password_hash=secure_pass,
@@ -37,14 +37,14 @@ def seed_database():
         db.add(courier)
 
         pkg1 = Package(
-            package_number=111111,
+            package_number=111111111,
             recipient_phone="600111222",
             status="AWAITING_RECIPIENT",
             courier_login="test",
             created_at=datetime.now()
         )
         pkg2 = Package(
-            package_number=222222,
+            package_number=222222222,
             recipient_phone="600333444",
             status="AWAITING_COURIER",
             courier_login=None,
@@ -54,7 +54,7 @@ def seed_database():
 
         lockers = [
             Locker(locker_id="POX001", machine_id="KR001", status="AVAILABLE", package_number=None, pin_code=None),
-            Locker(locker_id="POX002", machine_id="KR001", status="OCCUPIED", package_number=111111, pin_code=generate_pin_code()),
+            Locker(locker_id="POX002", machine_id="KR001", status="OCCUPIED", package_number=111111, pin_code=hash_secret("123456")),
             Locker(locker_id="POX003", machine_id="KR001", status="AVAILABLE", package_number=None, pin_code=None),
             Locker(locker_id="POX004", machine_id="KR001", status="OCCUPIED", package_number=222222, pin_code=None),
             Locker(locker_id="POX005", machine_id="KR001", status="AVAILABLE", package_number=None, pin_code=None),

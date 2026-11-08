@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -15,11 +15,6 @@ def get_current_courier(
     db: Session = Depends(get_db)):
 
     x_auth_token = credentials.credentials
-    if not x_auth_token:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="RROR: Brak naglowka autoryzacyjnego"
-        )
             
     hashed_auth_token = hash_secret(x_auth_token)
     courier = db.query(Courier).filter(Courier.token_session == hashed_auth_token).first()
@@ -30,11 +25,19 @@ def get_current_courier(
             detail="Brak aktywnej sesji kuriera. Zaloguj sie ponownie"
         )
 
-    if not courier.token_expires_at or courier.token_expires_at < datetime.now(timezone.utc):
-        courier.token_session = None
-        courier.token_expires_at = None
-        db.commit()
+    if not courier.token_expires_at or courier.token_expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
+        try:
+            courier.token_session = None
+            courier.token_expires_at = None
+            db.commit()
 
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Krytyczny blad bazy danych podczas zapisu"
+            )
+        
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Brak aktywnej sesji kuriera. Zaloguj sie ponownie"
@@ -59,11 +62,20 @@ def courier_login(
             detail="ERROR: Bledny login lub haslo"
         )
 
-    session_token = generate_session_token()
+    session_token, session_token_hash = generate_session_token()
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
-    courier.token_session = session_token
-    courier.token_expires_at = expires_at
-    db.commit()
+
+    try: 
+        courier.token_session = session_token_hash
+        courier.token_expires_at = expires_at
+        db.commit()
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Krytyczny blad bazy danych podczas zapisu"
+        )   
 
     return {
         "authenticated": True, 
@@ -73,23 +85,38 @@ def courier_login(
 
 @router.post("/api/auth/courier-logout", tags=["Kurier"], response_model=SuccessResponse)
 def courier_logout(
+    api_key: str = Depends(verify_rasp_api_key),
     db: Session = Depends(get_db), 
-    courier: Courier = Depends(get_current_courier), 
-    api_key: str = Depends(verify_rasp_api_key)):
+    courier: Courier = Depends(get_current_courier)):
 
-    courier.token_session = None
-    courier.token_expires_at = None
-    db.commit()
+    try:
+        courier.token_session = None
+        courier.token_expires_at = None
+        db.commit()
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Krytyczny blad bazy danych podczas zapisu"
+        )   
     
     print(f"Wylogowanie kuriera: {courier.courier_login}")
     return {"success": True, "message":"Wylogowano"}
 
 @router.get("/api/machines/{machine_id}/courier/pickups", tags=["Kurier"], response_model=CourierPickupsResponse)
 def get_courier_pickups(
-    machine_id: str, 
+    machine_id: str,
+    api_key: str = Depends(verify_rasp_api_key),
     db: Session = Depends(get_db), 
-    courier: Courier = Depends(get_current_courier), 
-    api_key: str = Depends(verify_rasp_api_key)):
+    courier: Courier = Depends(get_current_courier)):
+
+    machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()
+    if not machine:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="ERROR: Maszyna o podanym ID nie istnieje"
+        )
 
     packages_to_pickup = db.query(Package).join(
         Locker, Locker.package_number == Package.package_number
@@ -117,9 +144,16 @@ def get_courier_pickups(
 @router.post("/api/machines/{machine_id}/courier/confirm-pickups", tags=["Kurier"], response_model=CourierPickupsResponse)
 def confirm_courier_pickups(
     machine_id: str, 
+    api_key: str = Depends(verify_rasp_api_key),
     db: Session = Depends(get_db), 
-    courier: Courier = Depends(get_current_courier), 
-    api_key: str = Depends(verify_rasp_api_key)):
+    courier: Courier = Depends(get_current_courier)):
+
+    machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()
+    if not machine:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="ERROR: Maszyna o podanym ID nie istnieje"
+        )
 
     packages_to_pickup = db.query(Package).join(
         Locker, Locker.package_number == Package.package_number
@@ -136,23 +170,31 @@ def confirm_courier_pickups(
         }
 
     lockers_to_open = []
+
+    try:
+        for package in packages_to_pickup:
+            package.status = "ON_THE_WAY"
+            package.courier_login = courier.courier_login
     
-    for package in packages_to_pickup:
-        package.status = "ON_THE_WAY"
-        package.courier_login = courier.courier_login
+            locker = db.query(Locker).filter(
+            Locker.machine_id == machine_id,
+            Locker.package_number == package.package_number
+            ).first()
     
-        locker = db.query(Locker).filter(
-        Locker.machine_id == machine_id,
-        Locker.package_number == package.package_number
-        ).first()
+            if locker:
+                lockers_to_open.append(str(locker.locker_id))
+                locker.status = "AVAILABLE"
+                locker.package_number = None
     
-        if locker:
-            lockers_to_open.append(str(locker.locker_id))
-            locker.status = "AVAILABLE"
-            locker.package_number = None
-    
-    db.commit()
-        
+        db.commit()
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Krytyczny blad bazy danych podczas zapisu"
+        )
+
     return {
         "success": True,  
         "message":"Odbior zatwierdzony, otwieram skrytki",
@@ -162,10 +204,17 @@ def confirm_courier_pickups(
 @router.post("/api/machines/{machine_id}/courier/deliver", tags=["Kurier"], response_model=CourierDeliveryResponse)
 def courier_deliver(
     machine_id: str, 
-    payload: CourierDeliverRequest, 
+    payload: CourierDeliverRequest,
+    api_key: str = Depends(verify_rasp_api_key), 
     db: Session = Depends(get_db), 
-    courier: Courier = Depends(get_current_courier),
-    api_key: str = Depends(verify_rasp_api_key)):
+    courier: Courier = Depends(get_current_courier)):
+
+    machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()
+    if not machine:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="ERROR: Maszyna o podanym ID nie istnieje"
+        )
 
     package = db.query(Package).filter(
         Package.package_number == payload.package_number,
@@ -195,7 +244,7 @@ def courier_deliver(
             detail="Brak wolnych skrytek w tej maszynie"
         )
 
-    pin_code = generate_pin_code()
+    pin_code, pin_code_hash = generate_pin_code()
 
     print(f"\n [PROJEKT - POWIADOMIENIE SMS]")
     print(f"Do: {package.recipient_phone} | Paczka nr: {package.package_number}")
@@ -203,18 +252,26 @@ def courier_deliver(
 
     # KOMENTARZ DO PROJEKTU 
     # W KOMERCYJNEJ WERSJI SYSTEMU W TYM MIEJSCU NASTAPILOBY WYWOLANIE API ZEWNETRZNEGO OPERATORA BRAMKI SMS
+    try:
+        package.status = "AWAITING_RECIPIENT"
+        package.courier_login = None
 
-    package.status = "AWAITING_RECIPIENT"
-    package.courier_login = None
+        free_locker.status = "OCCUPIED"
+        free_locker.package_number = package.package_number
+        free_locker.pin_code = pin_code_hash
 
-    free_locker.status = "OCCUPIED"
-    free_locker.package_number = package.package_number
-    free_locker.pin_code = pin_code
+        db.commit()
 
-    db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Krytyczny blad bazy danych podczas zapisu"
+        )
 
     return {
         "success": True, 
         "message": "Paczka zarejestrowana, otwieram skrytke", 
         "locker_id": free_locker.locker_id
     }
+

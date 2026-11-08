@@ -6,15 +6,15 @@ class TechnicianVerifyRequest(BaseModel):
     full_name: str = Field(..., min_length=2, max_length=100)
 
 class RecipientPickupRequest(BaseModel):
-    recipient_phone: str = Field(..., pattern=r"^\+?[1-9]\d{7,14}$")
+    recipient_phone: str = Field(..., pattern=r"^[1-9]\d{8}$")
     pin_code: str =  Field(..., pattern=r"^\d{6}$")
 
 class SenderCreateRequest(BaseModel):
-    recipient_phone: str = Field(..., pattern=r"^\+?[1-9]\d{7,14}$")
+    recipient_phone: str = Field(..., pattern=r"^[1-9]\d{8}$")
 
 class CourierLoginRequest(BaseModel):
     courier_login: str = Field(..., min_length=3, max_length=50)
-    password: str = Field(..., min_length=5, max_length=128)
+    password: str = Field(..., min_length=8, max_length=128)
 
 class CourierDeliverRequest(BaseModel):
     package_number: int = Field(..., ge=100000000, le=999999999)

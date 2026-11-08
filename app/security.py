@@ -8,10 +8,13 @@ load_dotenv()
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")
 RASP_API_KEY = os.getenv("RASP_API_KEY")
 
+if not ADMIN_API_KEY or not RASP_API_KEY:
+    raise RuntimeError("BRAK KLUCZY API w zmiennych srodowiskowych!")
+
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 def verify_admin_api_key(x_api_key: str = Header(None, alias="x-api-key")) -> str:
-    if not x_api_key or not secrets.compare_digest(x_api_key, ADMIN_API_KEY):
+    if not x_api_key or not secrets.compare_digest(x_api_key.encode('utf-8'), ADMIN_API_KEY.encode('utf-8'),):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="ERROR: Brak uprawnien administartora"
@@ -19,7 +22,7 @@ def verify_admin_api_key(x_api_key: str = Header(None, alias="x-api-key")) -> st
     return x_api_key
 
 def verify_rasp_api_key(x_api_key: str = Header(None, alias="x-api-key")) -> str:
-    if not x_api_key or not secrets.compare_digest(x_api_key, RASP_API_KEY):
+    if not x_api_key or not secrets.compare_digest(x_api_key.encode('utf-8'), RASP_API_KEY.encode('utf-8')):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="ERROR: Brak autoryzacji urzadzenia IoT (nieprawidlowy API KEY)"
@@ -35,10 +38,11 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def hash_secret(secret_data: str) -> str:
     return hashlib.sha256(secret_data.encode('utf-8')).hexdigest()
 
-def generate_pin_code() -> str:
+def generate_pin_code() -> tuple[str, str]:
     pin = "".join(str(secrets.randbelow(10)) for _ in range(6))
-    return hash_secret(pin)
+    return pin, hash_secret(pin)
 
-def generate_session_token() -> str:
-    return hash_secret(secrets.token_hex(32))
+def generate_session_token() -> tuple[str, str]:
+    token = secrets.token_hex(32)
+    return token, hash_secret(token)
 

@@ -12,9 +12,9 @@ router = APIRouter()
 @router.post("/api/machines/{machine_id}/recipient/pickup", tags=["Klienci"], response_model=ClientPickupResponse)
 def recipient_pickup(
     machine_id: str, 
-    payload: RecipientPickupRequest, 
-    db: Session = Depends(get_db), 
-    api_key: str = Depends(verify_rasp_api_key)):
+    payload: RecipientPickupRequest,
+    api_key: str = Depends(verify_rasp_api_key),
+    db: Session = Depends(get_db)):
 
     print(f"Odbior paczki na maszynie {machine_id} telefon: {payload.recipient_phone}")
 
@@ -81,9 +81,9 @@ def recipient_pickup(
 @router.post("/api/machines/{machine_id}/sender/create-package", tags=["Klienci"], response_model=ClientSenderResponse)
 def seander_create_package(
     machine_id: str, 
-    payload: SenderCreateRequest, 
-    db: Session = Depends(get_db), 
-    api_key: str = Depends(verify_rasp_api_key)):
+    payload: SenderCreateRequest,
+    api_key: str = Depends(verify_rasp_api_key),
+    db: Session = Depends(get_db)):
     
     print(f"Nadanie paczki na maszynie {machine_id} do odbiorcy: {payload.recipient_phone}")
 
@@ -107,7 +107,7 @@ def seander_create_package(
 
     try:
         for _ in range(5):
-            package_number = str(secrets.randbelow(900000000) + 100000000)
+            package_number = secrets.randbelow(900000000) + 100000000
             existing_package = db.query(Package).filter(Package.package_number == package_number).first()
             if not existing_package:
                 break

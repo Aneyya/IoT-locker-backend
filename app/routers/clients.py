@@ -60,6 +60,7 @@ def recipient_pickup(
         matched_locker.pin_code = None
 
         matched_package.status = "RECEIVED"
+        matched_package.courier_login = None
 
         db.commit()
 

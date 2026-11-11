@@ -3,7 +3,8 @@ from passlib.context import CryptContext
 from fastapi import Header, HTTPException, status
 from dotenv import load_dotenv
 
-load_dotenv()
+env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+load_dotenv(env_path)
 
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")
 RASP_API_KEY = os.getenv("RASP_API_KEY")

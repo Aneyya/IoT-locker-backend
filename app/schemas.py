@@ -14,7 +14,7 @@ class SenderCreateRequest(BaseModel):
 
 class CourierLoginRequest(BaseModel):
     courier_login: str = Field(..., min_length=3, max_length=50)
-    password: str = Field(..., min_length=8, max_length=128)
+    password: str = Field(..., min_length=12, max_length=128)
 
 class CourierDeliverRequest(BaseModel):
     package_number: int = Field(..., ge=100000000, le=999999999)

@@ -17,7 +17,7 @@ def seed_database():
         machine = Machine(
             machine_id="KR001",
             address="Krakow, ul. Warszawska 24",
-            service_locker_id="SRV001",
+            service_locker_id="KR001_SRV1",
             is_service_open=False
         )
         db.add(machine)
@@ -28,7 +28,7 @@ def seed_database():
         )
         db.add(tech)
 
-        secure_pass = hash_password("test!test")
+        secure_pass = hash_password("test!test!123")
         courier = Courier(
             courier_login="test",
             password_hash=secure_pass,
@@ -53,11 +53,11 @@ def seed_database():
         db.add_all([pkg1, pkg2])
 
         lockers = [
-            Locker(locker_id="POX001", machine_id="KR001", status="AVAILABLE", package_number=None, pin_code=None),
-            Locker(locker_id="POX002", machine_id="KR001", status="OCCUPIED", package_number=111111, pin_code=hash_secret("123456")),
-            Locker(locker_id="POX003", machine_id="KR001", status="AVAILABLE", package_number=None, pin_code=None),
-            Locker(locker_id="POX004", machine_id="KR001", status="OCCUPIED", package_number=222222, pin_code=None),
-            Locker(locker_id="POX005", machine_id="KR001", status="AVAILABLE", package_number=None, pin_code=None),
+            Locker(locker_id="KR001_POX1", machine_id="KR001", status="AVAILABLE", package_number=None, pin_code=None),
+            Locker(locker_id="KR001_POX2", machine_id="KR001", status="OCCUPIED", package_number=111111, pin_code=hash_secret("123456")),
+            Locker(locker_id="KR001_POX3", machine_id="KR001", status="AVAILABLE", package_number=None, pin_code=None),
+            Locker(locker_id="KR001_POX4", machine_id="KR001", status="OCCUPIED", package_number=222222, pin_code=None),
+            Locker(locker_id="KR001_POX5", machine_id="KR001", status="AVAILABLE", package_number=None, pin_code=None),
         ]
         db.add_all(lockers)
 

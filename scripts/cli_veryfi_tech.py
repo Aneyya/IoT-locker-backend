@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
 load_dotenv(env_path)
 
-API_URL = "http://127.0.0.1:8000"
+API_URL = os.getenv("API_URL")
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")
 
 def main():

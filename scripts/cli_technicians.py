@@ -81,7 +81,7 @@ def delete_technician(db: Session):
 def main_menu():
     db = SessionLocal()
     while True:
-        print("\n=== PANEL ADMINISTRATORA: SERWISANCI ===")
+        print("\n---- Panel administartora (serwisanci) ----")
         print("1. Wywietl serwisantow")
         print("2. Dodaj serwisanta")
         print("3. Usun serwisanta")

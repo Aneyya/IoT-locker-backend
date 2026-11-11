@@ -249,6 +249,7 @@ def courier_deliver(
     print(f"\n [PROJEKT - POWIADOMIENIE SMS]")
     print(f"Do: {package.recipient_phone} | Paczka nr: {package.package_number}")
     print(f"Wygenerowany kod PIN do odbioru: {pin_code}\n")
+    print(f"Adres skrytki pocztowej: {machine.address}\n")
 
     # KOMENTARZ DO PROJEKTU 
     # W KOMERCYJNEJ WERSJI SYSTEMU W TYM MIEJSCU NASTAPILOBY WYWOLANIE API ZEWNETRZNEGO OPERATORA BRAMKI SMS

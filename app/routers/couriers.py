@@ -246,13 +246,6 @@ def courier_deliver(
 
     pin_code, pin_code_hash = generate_pin_code()
 
-    print(f"\n [PROJEKT - POWIADOMIENIE SMS]")
-    print(f"Do: {package.recipient_phone} | Paczka nr: {package.package_number}")
-    print(f"Wygenerowany kod PIN do odbioru: {pin_code}\n")
-    print(f"Adres skrytki pocztowej: {machine.address}\n")
-
-    # KOMENTARZ DO PROJEKTU 
-    # W KOMERCYJNEJ WERSJI SYSTEMU W TYM MIEJSCU NASTAPILOBY WYWOLANIE API ZEWNETRZNEGO OPERATORA BRAMKI SMS
     try:
         package.status = "AWAITING_RECIPIENT"
         package.courier_login = None
@@ -269,6 +262,14 @@ def courier_deliver(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Krytyczny blad bazy danych podczas zapisu"
         )
+
+    print(f"\n [PROJEKT - POWIADOMIENIE SMS]")
+    print(f"Do: {package.recipient_phone} | Paczka nr: {package.package_number}")
+    print(f"Wygenerowany kod PIN do odbioru: {pin_code}\n")
+    print(f"Adres skrytki pocztowej: {machine.address}\n")
+
+    # KOMENTARZ DO PROJEKTU 
+    # W KOMERCYJNEJ WERSJI SYSTEMU W TYM MIEJSCU NASTAPILOBY WYWOLANIE API ZEWNETRZNEGO OPERATORA BRAMKI SMS
 
     return {
         "success": True, 

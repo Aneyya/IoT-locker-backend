@@ -76,7 +76,7 @@ IoT-Locker-backend/
 ### 1. Wymagania wstępne
 Upewnij się, że masz zainstalowanego Pythona oraz serwer Nginx.
 
-### 2. Klonowanie repozytorium i konfiguracja środowiska
+### 2. Konfiguracja środowiska wirtualnego 
 ```bash
 # Utworzenie i aktywacja wirtualnego środowiska
 python3 -m venv venv

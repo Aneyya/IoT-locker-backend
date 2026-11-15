@@ -233,6 +233,12 @@ def courier_deliver(
             detail="Ta paczka nie ma statusu 'W drodze'. Nie mozna jej dostarczyc"
         )
 
+    if package.target_machine_id != machine_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="To nie jest docelowa maszyna tej paczki. Nie mozna jej dostarczyc"
+        )
+
     free_locker = db.query(Locker).filter(
         Locker.machine_id == machine_id,
         Locker.status == "AVAILABLE"

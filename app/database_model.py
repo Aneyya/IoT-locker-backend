@@ -9,11 +9,12 @@ class Machine(Base):
     machine_id = Column(String, primary_key=True, index=True)
     address = Column(String, nullable=False)
     service_locker_id = Column(String, nullable=False)
-    is_service_open = Column(Boolean, default=False)
+    is_service_open = Column(Boolean, default=False, nullable=False)
 
     #Relacje
     lockers = relationship("Locker", back_populates="machine")
     service_logs = relationship("ServiceLog", back_populates="machine")
+    packages = relationship("Package", back_populates="target_machine")
 
 class Locker(Base):
     __tablename__= "lockers"
@@ -32,6 +33,7 @@ class Package(Base):
     __tablename__= "packages"
     package_number = Column(Integer, primary_key=True, index=True)
     recipient_phone = Column(String, nullable=False)
+    target_machine_id = Column(String, ForeignKey("machines.machine_id"), nullable=False)
     status = Column(String, nullable=False)
     courier_login = Column(String, ForeignKey("couriers.courier_login"), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
@@ -39,6 +41,7 @@ class Package(Base):
     #Relacje
     courier = relationship("Courier", back_populates="packages")
     locker = relationship("Locker", back_populates="package", uselist=False)
+    target_machine = relationship("Machine", back_populates="packages")
 
 class Courier(Base):
     __tablename__= "couriers"

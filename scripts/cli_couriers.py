@@ -1,4 +1,4 @@
-import sys, os
+import sys, os, getpass
 from sqlalchemy.orm import Session
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -28,9 +28,14 @@ def add_courier(db: Session):
         print("Blad: Kurier o takim loginie juz istnieje!")
         return
 
-    password = input("Podaj haslo dla kuriera: ").strip()
+    password = getpass.getpass("Podaj haslo dla kuriera: ")
     if len(password) < 12:
         print("Blad: Haslo musi miec co najmniej 12 znakow!")
+        return
+    
+    password_confirm = getpass.getpass("Powtorz haslo dla kuriera: ")
+    if password != password_confirm:
+        print("Blad: Podane hasla sa rozne. Przerywam operacje")
         return
 
     password_hash = hash_password(password)

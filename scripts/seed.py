@@ -39,6 +39,7 @@ def seed_database():
         pkg1 = Package(
             package_number=111111111,
             recipient_phone="600111222",
+            target_machine_id = "KR001",
             status="AWAITING_RECIPIENT",
             courier_login="test",
             created_at=datetime.now()
@@ -46,6 +47,7 @@ def seed_database():
         pkg2 = Package(
             package_number=222222222,
             recipient_phone="600333444",
+            target_machine_id = "KR001",
             status="AWAITING_COURIER",
             courier_login=None,
             created_at=datetime.now()

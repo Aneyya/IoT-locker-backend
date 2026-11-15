@@ -80,11 +80,21 @@ def recipient_pickup(
     }
             
 @router.post("/api/machines/{machine_id}/sender/create-package", tags=["Klienci"], response_model=ClientSenderResponse)
-def seander_create_package(
+def sender_create_package(
     machine_id: str, 
     payload: SenderCreateRequest,
     api_key: str = Depends(verify_rasp_api_key),
     db: Session = Depends(get_db)):
+
+    target_machine = db.query(Machine).filter(
+        Machine.machine_id == payload.target_machine_id
+    ).first()
+
+    if not target_machine:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Maszyna docelowa {payload.target_machine_id} nie istnieje"
+        )
     
     print(f"Nadanie paczki na maszynie {machine_id} do odbiorcy: {payload.recipient_phone}")
 
@@ -116,6 +126,7 @@ def seander_create_package(
         new_package = Package(
             package_number = package_number,
             recipient_phone = payload.recipient_phone,
+            target_machine_id = payload.target_machine_id,
             status = "AWAITING_COURIER"
         )
         db.add(new_package)

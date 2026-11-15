@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 
 # Model żądań (REQUEST)
 class TechnicianVerifyRequest(BaseModel):
-    machine_id: str = Field(..., min_length=1, max_length=50)
+    machine_id: str = Field(..., min_length=1, max_length=50, pattern=r"^[A-Z]+[0-9]+$")
     full_name: str = Field(..., min_length=2, max_length=100)
 
 class RecipientPickupRequest(BaseModel):
@@ -11,6 +11,7 @@ class RecipientPickupRequest(BaseModel):
 
 class SenderCreateRequest(BaseModel):
     recipient_phone: str = Field(..., pattern=r"^[1-9]\d{8}$")
+    target_machine_id: str = Field(..., min_length=1, max_length=50, pattern=r"^[A-Z]+[0-9]+$")
 
 class CourierLoginRequest(BaseModel):
     courier_login: str = Field(..., min_length=3, max_length=50)

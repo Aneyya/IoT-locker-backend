@@ -1,4 +1,4 @@
-import secrets
+import secrets, logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -7,6 +7,7 @@ from app.schemas import *
 from app.security import *
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # Klient
 @router.post("/api/machines/{machine_id}/recipient/pickup", tags=["Klienci"], response_model=ClientPickupResponse)
@@ -16,10 +17,11 @@ def recipient_pickup(
     api_key: str = Depends(verify_rasp_api_key),
     db: Session = Depends(get_db)):
 
-    print(f"Odbior paczki na maszynie {machine_id} telefon: {payload.recipient_phone}")
+    logger.info(f"Proba odbioru paczki na maszynie {machine_id} telefon: {payload.recipient_phone}")
 
     machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()
     if not machine:
+        logger.warning(f"Odbior paczki odrzucony: maszyna {machine_id} nie istnieje")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
             detail="ERROR: Maszyna o podanym ID nie istnieje"
@@ -49,6 +51,7 @@ def recipient_pickup(
             break
 
     if not matched_locker or not matched_package:
+        logger.warning(f"Nieudany odbior paczki na maszynie {machine_id}")
         raise HTTPException(
             status_code= status.HTTP_400_BAD_REQUEST, 
             detail="ERROR: Bledny numer telefon, zly Pin lub brak oczekujacej paczki"
@@ -66,12 +69,13 @@ def recipient_pickup(
 
     except Exception as e:
         db.rollback()
+        logger.error(f"Blad bazy danych podczas odbioru paczki {matched_package.package_number} na maszynie {machine_id}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
             detail="ERROR: Blad bazy danych podczas aktualizacji statusow"
         )
 
-    print(f"Sukces! Otwieram skrytke {matched_locker.locker_id}")
+    logger.info(f"Odebrano paczke {matched_package.package_number}. Otwarto skrytke {matched_locker.locker_id} na maszynie {machine_id}")
 
     return {
         "success": True, 
@@ -86,23 +90,25 @@ def sender_create_package(
     api_key: str = Depends(verify_rasp_api_key),
     db: Session = Depends(get_db)):
 
+    logger.info(f"Rozpoczecie nadania paczki na maszynie {machine_id} do maszyny docelowej {payload.target_machine_id}")
+
+    machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()
+    if not machine:
+        logger.warning(f"Nadanie odrzucone: maszyna nadawcza {machine_id} nie istnieje")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="ERROR: Maszyna o podanym ID nie istnieje"
+        )
+
     target_machine = db.query(Machine).filter(
         Machine.machine_id == payload.target_machine_id
     ).first()
 
     if not target_machine:
+        logger.warning(f"Nadanie odrzucone: maszyna docelowa {payload.target_machine_id} nie istnieje")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Maszyna docelowa {payload.target_machine_id} nie istnieje"
-        )
-    
-    print(f"Nadanie paczki na maszynie {machine_id} do odbiorcy: {payload.recipient_phone}")
-
-    machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()
-    if not machine:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail="ERROR: Maszyna o podanym ID nie istnieje"
         )
 
     free_locker = db.query(Locker).filter(
@@ -111,6 +117,7 @@ def sender_create_package(
     ).with_for_update().first()
 
     if not free_locker:
+        logger.warning(f"Brak wolnych skrytek w maszynie {machine_id} podczas nadania paczki")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="ERROR: Brak wolnych skrytek w tej maszynie"
@@ -138,12 +145,14 @@ def sender_create_package(
 
     except Exception as e:
         db.rollback()
+        logger.error(f"Blad bazy danych podczas rejestracji paczki na maszynie {machine_id}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
             detail="ERROR: Blad bazy danych podczas aktualizacji statusow"
         )
 
-    print(f"Sukces! Paczka {package_number} przypisana do skrytki {free_locker.locker_id}. Otwieram skrytke")
+    logger.info(f"Nadano paczke {package_number} na maszynie {machine_id}, skrytka {free_locker.locker_id} przypisana do skrytki {free_locker.locker_id}."
+                f" -> cel: {payload.target_machine_id}, odbiorca:{payload.recipient_phone}")
 
     return {
         "success": True, 

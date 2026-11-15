@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -9,6 +10,7 @@ from app.security import *
 
 router = APIRouter()
 sec_auth_token = HTTPBearer()
+logger = logging.getLogger(__name__)
 
 def get_current_courier(
     credentials: HTTPAuthorizationCredentials = Depends(sec_auth_token), 
@@ -20,12 +22,14 @@ def get_current_courier(
     courier = db.query(Courier).filter(Courier.token_session == hashed_auth_token).first()
     
     if not courier:
+        logger.warning("Proba uzycia nieprawidlowego lub nieaktywnego tokenu sesji kuriera")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Brak aktywnej sesji kuriera. Zaloguj sie ponownie"
         )
 
     if not courier.token_expires_at or courier.token_expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
+        logger.info(f"Sesja kuriera {courier.courier_login} wygasla")
         try:
             courier.token_session = None
             courier.token_expires_at = None
@@ -33,6 +37,7 @@ def get_current_courier(
 
         except Exception as e:
             db.rollback()
+            logger.error(f"Blad bazy danych podczas czyszczenia wygaslej sesji kuriera {courier.courier_login}", exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Krytyczny blad bazy danych podczas zapisu"
@@ -52,11 +57,12 @@ def courier_login(
     db: Session = Depends(get_db), 
     api_key: str = Depends(verify_rasp_api_key)):
 
-    print(f"Proba logowania kuriera {payload.courier_login}")
+    logger.info(f"Proba logowania kuriera {payload.courier_login}")
 
     courier = db.query(Courier).filter(Courier.courier_login == payload.courier_login).first()
 
     if not courier or not verify_password(payload.password, courier.password_hash):
+        logger.warning(f"Nieudane logowanie kuriera (bledny login ub haslo): {payload.courier_login}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="ERROR: Bledny login lub haslo"
@@ -69,9 +75,11 @@ def courier_login(
         courier.token_session = session_token_hash
         courier.token_expires_at = expires_at
         db.commit()
+        logger.info(f"Kurier {payload.courier_login} zalogowany pomyslnie")
 
     except Exception as e:
         db.rollback()
+        logger.error(f"Blad bazy danych podczas zapisu sesji kuriera {payload.courier_login}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Krytyczny blad bazy danych podczas zapisu"
@@ -96,12 +104,13 @@ def courier_logout(
 
     except Exception as e:
         db.rollback()
+        logger.error(f"Blad bazy danych podczas wylogowywania kuriera {courier.courier_login}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Krytyczny blad bazy danych podczas zapisu"
         )   
     
-    print(f"Wylogowanie kuriera: {courier.courier_login}")
+    logger.info(f"Wylogowanie kuriera: {courier.courier_login}")
     return {"success": True, "message":"Wylogowano"}
 
 @router.get("/api/machines/{machine_id}/courier/pickups", tags=["Kurier"], response_model=CourierPickupsResponse)
@@ -113,6 +122,7 @@ def get_courier_pickups(
 
     machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()
     if not machine:
+        logger.warning(f"Kurier {courier.courier_login} zapytal o nieistniejaca maszyne {machine_id}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
             detail="ERROR: Maszyna o podanym ID nie istnieje"
@@ -126,6 +136,7 @@ def get_courier_pickups(
     ).all()
 
     if not packages_to_pickup:
+        logger.info(f"Kurier {courier.courier_login} sprawdzil maszyne {machine_id} - brak paczki do odbioru")
         return{
             "success": True,
             "message": "Brak paczek do odebrania w tej maszynie",
@@ -134,11 +145,14 @@ def get_courier_pickups(
 
     package_numbers = [p.package_number for p in packages_to_pickup]
     lockers = db.query(Locker).filter(Locker.machine_id == machine_id, Locker.package_number.in_(package_numbers)).all()
+    lockers_list = [str(l.locker_id) for l in lockers]
+
+    logger.info(f"Kurier {courier.courier_login} pobral liste skrytek do odbioru na maszynie {machine_id}: {lockers_list}")
     
     return {
         "success": True,  
         "message":"Lista skrytek do odbioru",
-        "lockers_to_open": [str(l.locker_id) for l in lockers]
+        "lockers_to_open": lockers_list
     }
 
 @router.post("/api/machines/{machine_id}/courier/confirm-pickups", tags=["Kurier"], response_model=CourierPickupsResponse)
@@ -150,6 +164,7 @@ def confirm_courier_pickups(
 
     machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()
     if not machine:
+        logger.warning(f"Potwierdzenie odbioru odrzucone: maszyna {machine_id} nie istnieje")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
             detail="ERROR: Maszyna o podanym ID nie istnieje"
@@ -170,11 +185,13 @@ def confirm_courier_pickups(
         }
 
     lockers_to_open = []
+    picked_packages = []
 
     try:
         for package in packages_to_pickup:
             package.status = "ON_THE_WAY"
             package.courier_login = courier.courier_login
+            picked_packages.append(package.package_number)
     
             locker = db.query(Locker).filter(
             Locker.machine_id == machine_id,
@@ -187,9 +204,12 @@ def confirm_courier_pickups(
                 locker.package_number = None
     
         db.commit()
+        logger.info(f"Kurier {courier.courier_login} odebral paczki {picked_packages} z maszyny {machine_id}"
+                    f"-> otwarte skrytki: {lockers_to_open}")
 
     except Exception as e:
         db.rollback()
+        logger.error(f"Blad bazy danych podczas potwierdzania odbioru paczek z maszyny {machine_id}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Krytyczny blad bazy danych podczas zapisu"
@@ -211,6 +231,7 @@ def courier_deliver(
 
     machine = db.query(Machine).filter(Machine.machine_id == machine_id).first()
     if not machine:
+        logger.warning(f"Dostawa odrzucona: maszyna {machine_id} nie istnieje")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
             detail="ERROR: Maszyna o podanym ID nie istnieje"
@@ -222,18 +243,22 @@ def courier_deliver(
     ).first()
 
     if not package:
+        logger.warning(f"Kurier {courier.courier_login} probowal dostarczyc nieistniejaca lub nieprzypisana paczke {payload.package_number}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Paczka nie istnieje lub jest przypisana do innego kuriera"
         )
     
     if package.status != "ON_THE_WAY":
+        logger.warning(f"Kurier {courier.courier_login} probowal dostarczyc paczke {payload.package_number} o blednym statusie {package.status}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Ta paczka nie ma statusu 'W drodze'. Nie mozna jej dostarczyc"
         )
 
     if package.target_machine_id != machine_id:
+        logger.warning(f"Kurier {courier.courier_login} probowal dostarczyc paczke {payload.package_number} do blednej maszyny docelowej"
+                       f"-> maszyna docelowa: {package.target_machine_id}, kurier przy maszynie: {machine_id}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="To nie jest docelowa maszyna tej paczki. Nie mozna jej dostarczyc"
@@ -245,6 +270,7 @@ def courier_deliver(
     ).with_for_update().first()
 
     if not free_locker:
+        logger.warning(f"Brak wolnych skrytek w maszynie {machine_id} podczas dostawy paczki {payload.package_number}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Brak wolnych skrytek w tej maszynie"
@@ -264,18 +290,19 @@ def courier_deliver(
 
     except Exception as e:
         db.rollback()
+        logger.error(f"Blad bazy danych podczas dostawy paczki {payload.package_number} do maszyny {machine_id}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Krytyczny blad bazy danych podczas zapisu"
         )
 
-    print(f"\n [PROJEKT - POWIADOMIENIE SMS]")
-    print(f"Do: {package.recipient_phone} | Paczka nr: {package.package_number}")
-    print(f"Wygenerowany kod PIN do odbioru: {pin_code}\n")
-    print(f"Adres skrytki pocztowej: {machine.address}\n")
+    logger.info(f"Kurier {courier.courier_login} umiescil paczke {package.package_number} w skrytce {free_locker.locker_id} na maszynie {machine_id}")
 
     # KOMENTARZ DO PROJEKTU 
     # W KOMERCYJNEJ WERSJI SYSTEMU W TYM MIEJSCU NASTAPILOBY WYWOLANIE API ZEWNETRZNEGO OPERATORA BRAMKI SMS
+    logger.info(f"[PROJEKT - POWIADOMIENIE SMS] Do: {package.recipient_phone} | Paczka nr: {package.package_number}"
+                f"Wygenerowany kod PIN do odbioru: {pin_code} | Adres skrytki pocztowej: {machine.address}")
+
 
     return {
         "success": True, 

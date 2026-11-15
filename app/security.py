@@ -1,7 +1,9 @@
-import hashlib, secrets, os
+import hashlib, secrets, os, logging
 from passlib.context import CryptContext
 from fastapi import Header, HTTPException, status
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
 load_dotenv(env_path)
@@ -10,12 +12,15 @@ ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")
 RASP_API_KEY = os.getenv("RASP_API_KEY")
 
 if not ADMIN_API_KEY or not RASP_API_KEY:
+    logger.critical("BRAK KLUCZY API w zmiennych srodowiskowych!")
     raise RuntimeError("BRAK KLUCZY API w zmiennych srodowiskowych!")
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 def verify_admin_api_key(x_api_key: str = Header(None, alias="x-api-key")) -> str:
     if not x_api_key or not secrets.compare_digest(x_api_key.encode('utf-8'), ADMIN_API_KEY.encode('utf-8'),):
+        reason = "brak naglowka x-api-key" if not x_api_key else "nieprawidlowy klucz API"
+        logger.warning(f"Odrzucono probe dostepu do zasobow ADMIN ({reason})")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="ERROR: Brak uprawnien administartora"
@@ -24,6 +29,8 @@ def verify_admin_api_key(x_api_key: str = Header(None, alias="x-api-key")) -> st
 
 def verify_rasp_api_key(x_api_key: str = Header(None, alias="x-api-key")) -> str:
     if not x_api_key or not secrets.compare_digest(x_api_key.encode('utf-8'), RASP_API_KEY.encode('utf-8')):
+        reason = "brak naglowka x-api-key" if not x_api_key else "nieprawidlowy klucz API"
+        logger.warning(f"Odrzucono probe dostepu urzadzenia IoT ({reason})")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="ERROR: Brak autoryzacji urzadzenia IoT (nieprawidlowy API KEY)"

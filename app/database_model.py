@@ -6,7 +6,7 @@ from app.database import Base
 class Machine(Base):
     __tablename__= "machines"
 
-    machine_id = Column(String, primary_key=True, index=True)
+    machine_id = Column(String, primary_key=True)
     address = Column(String, nullable=False)
     service_locker_id = Column(String, nullable=False)
     is_service_open = Column(Boolean, default=False, nullable=False)
@@ -19,10 +19,10 @@ class Machine(Base):
 class Locker(Base):
     __tablename__= "lockers"
     
-    locker_id = Column(String, primary_key=True, index=True)
-    machine_id = Column(String, ForeignKey("machines.machine_id"), nullable=False)
-    status = Column(String, nullable=False)
-    package_number = Column(Integer, ForeignKey("packages.package_number"), nullable=True)
+    locker_id = Column(String, primary_key=True)
+    machine_id = Column(String, ForeignKey("machines.machine_id"), nullable=False, index=True)
+    status = Column(String, nullable=False, index=True)
+    package_number = Column(Integer, ForeignKey("packages.package_number"), nullable=True, unique=True)
     pin_code = Column(String, nullable=True)
     
     #Relacje
@@ -31,11 +31,11 @@ class Locker(Base):
     
 class Package(Base):
     __tablename__= "packages"
-    package_number = Column(Integer, primary_key=True, index=True)
-    recipient_phone = Column(String, nullable=False)
-    target_machine_id = Column(String, ForeignKey("machines.machine_id"), nullable=False)
-    status = Column(String, nullable=False)
-    courier_login = Column(String, ForeignKey("couriers.courier_login"), nullable=True)
+    package_number = Column(Integer, primary_key=True)
+    recipient_phone = Column(String, nullable=False, index=True)
+    target_machine_id = Column(String, ForeignKey("machines.machine_id"), nullable=False, index=True)
+    status = Column(String, nullable=False, index=True)
+    courier_login = Column(String, ForeignKey("couriers.courier_login"), nullable=True, index=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     #Relacje
@@ -46,7 +46,7 @@ class Package(Base):
 class Courier(Base):
     __tablename__= "couriers"
 
-    courier_login = Column(String, primary_key=True, index=True)
+    courier_login = Column(String, primary_key=True)
     password_hash = Column(String, nullable=False)
     token_session = Column(String, nullable=True, index=True)
     token_expires_at = Column(DateTime, nullable=True)
@@ -57,7 +57,7 @@ class Courier(Base):
 class Technician(Base):
     __tablename__= "technicians"
 
-    tech_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    tech_id = Column(Integer, primary_key=True, autoincrement=True)
     full_name = Column(String, nullable=False)
     phone_number = Column(String, nullable=False)
 
@@ -67,9 +67,9 @@ class Technician(Base):
 class ServiceLog(Base):
     __tablename__= "service_logs"
 
-    log_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    machine_id = Column(String, ForeignKey("machines.machine_id"), nullable=False)
-    tech_id = Column(Integer, ForeignKey("technicians.tech_id"), nullable=True)
+    log_id = Column(Integer, primary_key=True, autoincrement=True)
+    machine_id = Column(String, ForeignKey("machines.machine_id"), nullable=False, index=True)
+    tech_id = Column(Integer, ForeignKey("technicians.tech_id"), nullable=True, index=True)
     action = Column(String, nullable=False)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     

@@ -61,4 +61,4 @@ def secure_state():
             except keyring.errors.PasswordDeleteError:
                 pass
 
-    return SecureStateStore
+    return SecureStateStore()

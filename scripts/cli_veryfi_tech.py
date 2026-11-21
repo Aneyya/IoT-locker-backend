@@ -51,7 +51,8 @@ def main():
             close_resp = requests.post(close_url, headers=headers)
             
             if close_resp.status_code == 200:
-                print("Sukces! Skrytka zostala bezpiecznie zamknieta w bazie danych.")
+                print("Sukces! Skrytka zostala zamknieta w bazie danych")
+                print("Stan skrytki pocztowej na maszynie zaktualizuje sie po wyjsciu z trybu serwisowego")
                 print("Zakonczenie procedury serwisowej.")
             else:
                 print(f"Blad przy zamykaniu: kod {close_resp.status_code}")

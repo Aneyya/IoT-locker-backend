@@ -301,7 +301,7 @@ def courier_deliver(
     # KOMENTARZ DO PROJEKTU 
     # W KOMERCYJNEJ WERSJI SYSTEMU W TYM MIEJSCU NASTAPILOBY WYWOLANIE API ZEWNETRZNEGO OPERATORA BRAMKI SMS
     logger.info(f"[PROJEKT - POWIADOMIENIE SMS] Do: {package.recipient_phone} | Paczka nr: {package.package_number}"
-                f"Wygenerowany kod PIN do odbioru: {pin_code} | Adres skrytki pocztowej: {machine.address}")
+                f" Wygenerowany kod PIN do odbioru: {pin_code} | Adres skrytki pocztowej: {machine.address}")
 
 
     return {

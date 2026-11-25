@@ -123,19 +123,19 @@ def sender_create_package(
             detail="ERROR: Brak wolnych skrytek w tej maszynie"
         )
 
-    try:
-        for _ in range(5):
-            package_number = secrets.randbelow(900000000) + 100000000
-            existing_package = db.query(Package).filter(Package.package_number == package_number).first()
-            if not existing_package:
-                break
-        else:
-            logger.error(f"Nie udalo sie wygenerowac unikalnego numeru paczki")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
-                detail="Nie udalo sie wygenerowac unikalnego numeru paczki"
-            )
+    for _ in range(5):
+        package_number = secrets.randbelow(900000000) + 100000000
+        existing_package = db.query(Package).filter(Package.package_number == package_number).first()
+        if not existing_package:
+            break
+    else:
+        logger.error(f"Nie udalo sie wygenerowac unikalnego numeru paczki")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail="Nie udalo sie wygenerowac unikalnego numeru paczki"
+        )
 
+    try:
         new_package = Package(
             package_number = package_number,
             recipient_phone = payload.recipient_phone,

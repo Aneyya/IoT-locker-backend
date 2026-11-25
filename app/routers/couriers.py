@@ -61,8 +61,8 @@ def courier_login(
 
     courier = db.query(Courier).filter(Courier.courier_login == payload.courier_login).first()
 
-    password_to_chech = courier.password_hash if courier else DUMMY_HASH
-    is_valid = verify_password(payload.password, password_to_chech)
+    password_to_check = courier.password_hash if courier else DUMMY_HASH
+    is_valid = verify_password(payload.password, password_to_check)
 
     if not courier or not is_valid:
         logger.warning(f"Nieudane logowanie kuriera (bledny login ub haslo): {payload.courier_login}")

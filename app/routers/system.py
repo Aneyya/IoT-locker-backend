@@ -120,6 +120,14 @@ def close_service_locker(
             status_code=status.HTTP_404_NOT_FOUND, 
             detail=f"Maszyna {machine_id} nie istnieje w bazie"
         )
+
+    if not machine.is_service_open:
+        logger.warning(f"Tryb serwisowy na maszynie {machine_id} nie jest otwarty")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail=f"Tryb serwisowy na maszynie {machine_id} nie jest otwarty"
+        )
+    
     try:
         success_close_log = ServiceLog(
             machine_id=machine_id,

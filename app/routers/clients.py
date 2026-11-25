@@ -157,7 +157,7 @@ def sender_create_package(
             detail="ERROR: Blad bazy danych podczas aktualizacji statusow"
         )
 
-    logger.info(f"Nadano paczke {package_number} na maszynie {machine_id}, skrytka {free_locker.locker_id} przypisana do skrytki {free_locker.locker_id}."
+    logger.info(f"Nadano paczke {package_number} na maszynie {machine_id}, paczka przypisana do skrytki {free_locker.locker_id}."
                 f" -> cel: {payload.target_machine_id}, odbiorca:{payload.recipient_phone}")
 
     return {

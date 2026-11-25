@@ -82,10 +82,10 @@ def main_menu():
     db = SessionLocal()
     while True:
         print("\n---- Panel administratora (serwisanci) ----")
-        print("1. Wywietl serwisantow")
+        print("1. Wyswietl serwisantow")
         print("2. Dodaj serwisanta")
         print("3. Usun serwisanta")
-        print("4. Wyjcie")
+        print("4. Wyjscie")
         
         choice = input("Wybierz opcje (1-4): ").strip()
         

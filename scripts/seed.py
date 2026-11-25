@@ -45,7 +45,7 @@ def seed_database():
                 recipient_phone="600111222",
                 target_machine_id = "KR001",
                 status="AWAITING_RECIPIENT",
-                courier_login="test",
+                courier_login=None,
                 created_at=datetime.now(timezone.utc)
             )
             pkg2 = Package(

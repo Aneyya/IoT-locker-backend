@@ -61,7 +61,10 @@ def courier_login(
 
     courier = db.query(Courier).filter(Courier.courier_login == payload.courier_login).first()
 
-    if not courier or not verify_password(payload.password, courier.password_hash):
+    password_to_chech = courier.password_hash if courier else DUMMY_HASH
+    is_valid = verify_password(payload.password, password_to_chech)
+
+    if not courier or not is_valid:
         logger.warning(f"Nieudane logowanie kuriera (bledny login ub haslo): {payload.courier_login}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

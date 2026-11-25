@@ -21,6 +21,7 @@ if not PIN_PEPPER:
     raise RuntimeError("Brak zmiennej PIN_PEPPER w zmiennych srodowiskowych!")
 
 ph = PasswordHasher()
+DUMMY_HASH = ph.hash("dummy_password_for_timing_protection")
 
 def verify_admin_api_key(x_api_key: str = Header(None, alias="x-api-key")) -> str:
     if not x_api_key or not secrets.compare_digest(x_api_key.encode('utf-8'), ADMIN_API_KEY.encode('utf-8'),):

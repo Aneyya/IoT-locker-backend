@@ -1,6 +1,6 @@
 import pytest
 
-@pytest.mark.parametrize("path", ["/docs", "redoc", "openapi.json"])
+@pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json"])
 def test_nginx_blocks_documentation(http_client, path):
     """ Nginx zwraca 403 dla publicznej dokumentacji Swagger/ReDoc """
     response = http_client.get(path)

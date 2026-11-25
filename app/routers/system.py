@@ -52,8 +52,6 @@ def verify_technician(
             detail=f"Maszyna {payload.machine_id} nie istnieje w bazie"
         )
 
-    print(f"Weryfikacja technika: {payload.full_name} na maszynie {payload.machine_id}")
-
     technician = db.query(Technician).filter(Technician.full_name == payload.full_name).first()
     if not technician:
         logger.warning(f"Nieudana weryfikacja technika {payload.full_name} na maszynie {payload.machine_id}")
@@ -80,12 +78,12 @@ def verify_technician(
         )
 
     try:
-        succes_log = ServiceLog(
+        success_log = ServiceLog(
             machine_id=payload.machine_id,
             tech_id=technician.tech_id,
             action="REMOTE_VERIFY_SUCCESS"
         )
-        db.add(succes_log)
+        db.add(success_log)
         machine.is_service_open = True
 
         db.commit()

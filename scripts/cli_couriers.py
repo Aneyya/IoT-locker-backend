@@ -43,7 +43,7 @@ def add_courier(db: Session):
 
     try:
         db.add(new_courier)
-        db.commit
+        db.commit()
         print(f"Sukces! Dodano kuriera: {login}")
 
     except Exception as e:
@@ -54,7 +54,7 @@ def delete_courier(db: Session):
     print("\n---- Usuwanie kuriera ----")
     login = input("Podaj login kuriera do usuniecia: ").strip()
 
-    courier = db.query(Courier).filter(Courier.courier_login == login)
+    courier = db.query(Courier).filter(Courier.courier_login == login).first()
     if not courier:
         print("Blad: Taki kurier nie istnieje")
         return
@@ -70,7 +70,7 @@ def delete_courier(db: Session):
     if confirm.lower() == 't':
         try:
             db.delete(courier)
-            db.commit
+            db.commit()
             print(f"Usunieto kuriera: {login}")
 
         except Exception as e:

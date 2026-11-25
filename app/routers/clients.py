@@ -129,6 +129,12 @@ def sender_create_package(
             existing_package = db.query(Package).filter(Package.package_number == package_number).first()
             if not existing_package:
                 break
+        else:
+            logger.error(f"Nie udalo sie wygenerowac unikalnego numeru paczki")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+                detail="Nie udalo sie wygenerowac unikalnego numeru paczki"
+            )
 
         new_package = Package(
             package_number = package_number,

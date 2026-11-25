@@ -6,73 +6,80 @@ from app.security import *
 def seed_database():
     print("Resetowanie tabel w bazie danych")
 
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
+    odp = input("Czy na pewno wyczyscic i zresetowac baze? [T/N]: ").upper()
 
-    db = SessionLocal()
+    if odp == "T": 
+        Base.metadata.drop_all(bind=engine)
+        Base.metadata.create_all(bind=engine)
 
-    try:
-        print("Uzupełnienie bazy danymi testowymi")
+        db = SessionLocal()
 
-        machine = Machine(
-            machine_id="KR001",
-            address="Krakow, ul. Warszawska 24",
-            service_locker_id="KR001_SRV1",
-            is_service_open=False
-        )
-        db.add(machine)
 
-        tech = Technician(
-            full_name="Jan Nowak",
-            phone_number="500600700"
-        )
-        db.add(tech)
+        try:
+            print("Uzupełnienie bazy danymi testowymi")
 
-        secure_pass = hash_password("test!test!123")
-        courier = Courier(
-            courier_login="test",
-            password_hash=secure_pass,
-            token_session=None
-        )
-        db.add(courier)
+            machine = Machine(
+                machine_id="KR001",
+                address="Krakow, ul. Warszawska 24",
+                service_locker_id="KR001_SRV1",
+                is_service_open=False
+            )
+            db.add(machine)
 
-        pkg1 = Package(
-            package_number=111111111,
-            recipient_phone="600111222",
-            target_machine_id = "KR001",
-            status="AWAITING_RECIPIENT",
-            courier_login="test",
-            created_at=datetime.now()
-        )
-        pkg2 = Package(
-            package_number=222222222,
-            recipient_phone="600333444",
-            target_machine_id = "KR001",
-            status="AWAITING_COURIER",
-            courier_login=None,
-            created_at=datetime.now()
-        )
-        db.add_all([pkg1, pkg2])
+            tech = Technician(
+                full_name="Jan Nowak",
+                phone_number="500600700"
+            )
+            db.add(tech)
 
-        lockers = [
-            Locker(locker_id="KR001_POX1", machine_id="KR001", status="AVAILABLE", package_number=None, pin_code=None),
-            Locker(locker_id="KR001_POX2", machine_id="KR001", status="OCCUPIED", package_number=111111111, pin_code=hash_secret("123456")),
-            Locker(locker_id="KR001_POX3", machine_id="KR001", status="AVAILABLE", package_number=None, pin_code=None),
-            Locker(locker_id="KR001_POX4", machine_id="KR001", status="OCCUPIED", package_number=222222222, pin_code=None),
-            Locker(locker_id="KR001_POX5", machine_id="KR001", status="AVAILABLE", package_number=None, pin_code=None),
-        ]
-        db.add_all(lockers)
+            secure_pass = hash_password("test!test!123")
+            courier = Courier(
+                courier_login="test",
+                password_hash=secure_pass,
+                token_session=None
+            )
+            db.add(courier)
 
-        db.commit()
+            pkg1 = Package(
+                package_number=111111111,
+                recipient_phone="600111222",
+                target_machine_id = "KR001",
+                status="AWAITING_RECIPIENT",
+                courier_login="test",
+                created_at=datetime.now(timezone.utc)
+            )
+            pkg2 = Package(
+                package_number=222222222,
+                recipient_phone="600333444",
+                target_machine_id = "KR001",
+                status="AWAITING_COURIER",
+                courier_login=None,
+                created_at=datetime.now(timezone.utc)
+            )
+            db.add_all([pkg1, pkg2])
 
-        print("\nBaza danych została pomyślnie zasilona!")
+            lockers = [
+                Locker(locker_id="KR001_POX1", machine_id="KR001", status="AVAILABLE", package_number=None, pin_code=None),
+                Locker(locker_id="KR001_POX2", machine_id="KR001", status="OCCUPIED", package_number=111111111, pin_code=hash_secret("123456")),
+                Locker(locker_id="KR001_POX3", machine_id="KR001", status="AVAILABLE", package_number=None, pin_code=None),
+                Locker(locker_id="KR001_POX4", machine_id="KR001", status="OCCUPIED", package_number=222222222, pin_code=None),
+                Locker(locker_id="KR001_POX5", machine_id="KR001", status="AVAILABLE", package_number=None, pin_code=None),
+            ]
+            db.add_all(lockers)
 
-    except Exception as e:
-        db.rollback()
-        print(f"Blad podczas tworzenia danych {e}")
+            db.commit()
 
-    finally:
-        db.close()
+            print("\nBaza danych została pomyślnie zasilona!")
+
+        except Exception as e:
+            db.rollback()
+            print(f"Blad podczas tworzenia danych {e}")
+
+        finally:
+            db.close()
+
+    else:
+        print("Przerwano akcje")
 
 if __name__=='__main__':
     seed_database()

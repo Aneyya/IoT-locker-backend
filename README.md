@@ -127,7 +127,7 @@ Utwórz plik `tests/.env` i uzupełnij wymagane zmienne:
 
 Utwórz plik `scripts/.env`, wskazując adres lokalnego proxy Nginx oraz klucz API używany do komunikacji z endpointami maszyn:
    ```env
-   API_URL=http://127.0.0.1
+   API_URL=http://127.0.0.1:8000
    ADMIN_API_KEY=twoj_tajny_klucz_admina
    ```
 
